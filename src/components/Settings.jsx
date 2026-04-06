@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 
 export default function Settings({ onClose }) {
   const [settings, setSettings] = useState({
+    aiProvider: 'local',
+    localLLMUrl: 'http://localhost:11434',
+    localLLMModel: 'llama3.2',
     anthropicApiKey: '',
     maxItems: 1000,
   })
@@ -19,12 +22,7 @@ export default function Settings({ onClose }) {
     setTimeout(() => setSaved(false), 2000)
   }
 
-  const openConsole = (e) => {
-    e.preventDefault()
-    // In Electron, links don't open by default — the main process would need shell.openExternal
-    // For now, just show the URL
-    window.clipAPI.hideWindow && null
-  }
+  const isLocal = settings.aiProvider !== 'anthropic'
 
   return (
     <div className="settings">
@@ -36,28 +34,70 @@ export default function Settings({ onClose }) {
       </div>
 
       <div className="settings-section">
-        <h3>AI Search</h3>
-        <p className="settings-desc">
-          Enable semantic AI search by adding your Anthropic API key. Uses claude-haiku (fast &amp; cheap).
-        </p>
-        <label htmlFor="apikey">Anthropic API Key</label>
-        <input
-          id="apikey"
-          type="password"
-          placeholder="sk-ant-api03-..."
-          value={settings.anthropicApiKey}
-          onChange={(e) =>
-            setSettings((s) => ({ ...s, anthropicApiKey: e.target.value }))
-          }
-          autoComplete="off"
-        />
-        <p className="settings-desc">
-          Get a key at{' '}
-          <button className="settings-link" onClick={openConsole}>
-            console.anthropic.com
+        <h3>AI Search Provider</h3>
+        <div className="provider-toggle">
+          <button
+            className={`provider-btn ${isLocal ? 'active' : ''}`}
+            onClick={() => setSettings((s) => ({ ...s, aiProvider: 'local' }))}
+          >
+            Local LLM
           </button>
-        </p>
+          <button
+            className={`provider-btn ${!isLocal ? 'active' : ''}`}
+            onClick={() => setSettings((s) => ({ ...s, aiProvider: 'anthropic' }))}
+          >
+            Anthropic
+          </button>
+        </div>
       </div>
+
+      {isLocal ? (
+        <div className="settings-section">
+          <h3>Local LLM (Ollama)</h3>
+          <p className="settings-desc">
+            Runs AI search entirely on your machine. Requires{' '}
+            <span className="settings-link">Ollama</span> running locally.
+          </p>
+          <label htmlFor="llmurl">Ollama URL</label>
+          <input
+            id="llmurl"
+            type="text"
+            placeholder="http://localhost:11434"
+            value={settings.localLLMUrl}
+            onChange={(e) => setSettings((s) => ({ ...s, localLLMUrl: e.target.value }))}
+            autoComplete="off"
+          />
+          <label htmlFor="llmmodel" style={{ marginTop: 8 }}>Model</label>
+          <input
+            id="llmmodel"
+            type="text"
+            placeholder="llama3.2"
+            value={settings.localLLMModel}
+            onChange={(e) => setSettings((s) => ({ ...s, localLLMModel: e.target.value }))}
+            autoComplete="off"
+          />
+          <p className="settings-desc" style={{ marginTop: 6 }}>
+            Any model pulled in Ollama works. Recommended: <code>llama3.2</code>, <code>mistral</code>, <code>phi3</code>
+          </p>
+        </div>
+      ) : (
+        <div className="settings-section">
+          <h3>Anthropic API</h3>
+          <p className="settings-desc">
+            Uses Claude Haiku for fast, accurate results. Requires an API key.
+          </p>
+          <label htmlFor="apikey">API Key</label>
+          <input
+            id="apikey"
+            type="password"
+            placeholder="sk-ant-api03-..."
+            value={settings.anthropicApiKey}
+            onChange={(e) => setSettings((s) => ({ ...s, anthropicApiKey: e.target.value }))}
+            autoComplete="off"
+          />
+          <p className="settings-desc">Get a key at console.anthropic.com</p>
+        </div>
+      )}
 
       <div className="settings-section">
         <h3>Storage</h3>
@@ -85,7 +125,7 @@ export default function Settings({ onClose }) {
         <h3>About</h3>
         <p className="version-text">ClipSmart v0.1.0 — AI-powered clipboard manager</p>
         <p className="settings-desc">
-          All data is stored locally on your machine. Nothing is sent to the cloud unless you use AI search.
+          All data is stored locally. Local LLM mode never sends data anywhere.
         </p>
       </div>
 

@@ -503,3 +503,48 @@ html, body, #root {
   color: var(--text-muted);
   font-size: 11px;
 }
+
+/* ─── Provider toggle ────────────────────────────── */
+
+.provider-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.provider-btn {
+  flex: 1;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.provider-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.provider-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.settings-section code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #c4b5fd;
+}
+
+.settings-section label + input,
+.settings-section label ~ input {
+  margin-top: 4px;
+}

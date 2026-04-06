@@ -72,10 +72,12 @@ export default function App() {
     const allClips = await window.clipAPI.getClips(200, 0)
     const results = await window.clipAPI.aiSearch(query, allClips)
     setAiSearching(false)
-    if (results) {
+    if (results && results.error) {
+      showNotification(results.error)
+    } else if (results && results.length >= 0) {
       setClips(results)
     } else {
-      showNotification('Add an Anthropic API key in Settings to use AI search')
+      showNotification('No results from AI search')
     }
   }, [query, aiSearching, showNotification])
 

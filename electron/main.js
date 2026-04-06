@@ -105,6 +105,62 @@ function writeSettings(settings) {
   fs.writeFileSync(getSettingsPath(), JSON.stringify(settings, null, 2))
 }
 
+function buildPrompt(query, clips) {
+  const clipSummaries = clips
+    .slice(0, 100)
+    .map((c, i) => `[${i}] ${c.content.slice(0, 120).replace(/\n/g, ' ')}`)
+    .join('\n')
+  return `Search query: "${query}"\n\nFind the most relevant clipboard items. Return ONLY a JSON array of indices (e.g. [2, 0, 4]). Return [] if nothing matches. Max 8 results.\n\nItems:\n${clipSummaries}`
+}
+
+function parseIndices(text, clips) {
+  const match = text.match(/\[[\d,\s]*\]/)
+  if (!match) return null
+  const indices = JSON.parse(match[0])
+  return indices.map((i) => clips[i]).filter(Boolean)
+}
+
+async function localLLMSearch(settings, prompt, clips) {
+  const baseURL = settings.localLLMUrl || 'http://localhost:11434'
+  const model = settings.localLLMModel || 'llama3.2'
+
+  try {
+    const res = await fetch(`${baseURL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+    if (!res.ok) throw new Error(`Ollama returned ${res.status}`)
+    const data = await res.json()
+    const text = data.message?.content || ''
+    return parseIndices(text, clips)
+  } catch (e) {
+    console.error('Local LLM search error:', e.message)
+    return { error: `Local LLM unavailable: ${e.message}` }
+  }
+}
+
+async function anthropicSearch(settings, prompt, clips) {
+  try {
+    const Anthropic = require('@anthropic-ai/sdk')
+    const client = new (Anthropic.default || Anthropic)({ apiKey: settings.anthropicApiKey })
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    const text = response.content[0].text.trim()
+    return parseIndices(text, clips)
+  } catch (e) {
+    console.error('Anthropic search error:', e.message)
+    return { error: e.message }
+  }
+}
+
 app.whenReady().then(() => {
   initDB()
   createWindow()
@@ -161,37 +217,14 @@ app.whenReady().then(() => {
 
   ipcMain.handle('ai-search', async (_, query, clips) => {
     const settings = readSettings()
-    const apiKey = settings.anthropicApiKey
-    if (!apiKey) return null
+    const useLocal = settings.aiProvider !== 'anthropic'
+    const prompt = buildPrompt(query, clips)
 
-    try {
-      const Anthropic = require('@anthropic-ai/sdk')
-      const client = new (Anthropic.default || Anthropic)({ apiKey })
-
-      const clipSummaries = clips
-        .slice(0, 100)
-        .map((c, i) => `[${i}] ${c.content.slice(0, 120).replace(/\n/g, ' ')}`)
-        .join('\n')
-
-      const response = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 256,
-        messages: [
-          {
-            role: 'user',
-            content: `Search query: "${query}"\n\nFind the most relevant clipboard items. Return ONLY a JSON array of indices (e.g. [2, 0, 4]). Return [] if nothing matches. Max 8 results.\n\nItems:\n${clipSummaries}`,
-          },
-        ],
-      })
-
-      const text = response.content[0].text.trim()
-      const match = text.match(/\[[\d,\s]*\]/)
-      if (!match) return null
-      const indices = JSON.parse(match[0])
-      return indices.map((i) => clips[i]).filter(Boolean)
-    } catch (e) {
-      console.error('AI search error:', e.message)
-      return null
+    if (useLocal) {
+      return localLLMSearch(settings, prompt, clips)
+    } else {
+      if (!settings.anthropicApiKey) return { error: 'No Anthropic API key set' }
+      return anthropicSearch(settings, prompt, clips)
     }
   })
 })
