@@ -4,7 +4,7 @@
   "description": "AI-powered clipboard manager",
   "main": "electron/main.js",
   "scripts": {
-    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron . --dev\"",
+    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && node scripts/launch-electron.js --dev\"",
     "build:renderer": "vite build",
     "build": "npm run build:renderer && electron-builder",
     "preview": "vite preview"
@@ -22,7 +22,10 @@
       "output": "dist-electron"
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "mac": {
       "target": "dmg",
@@ -38,6 +41,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
+    "cross-env": "^10.1.0",
     "electron": "^29.1.4",
     "electron-builder": "^24.13.3",
     "react": "^18.3.1",
